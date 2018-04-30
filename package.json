@@ -1,7 +1,7 @@
 {
   "name": "js-guld-lib",
   "main": "./guld-lib.js",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Javascript library for interacting with guld.",
   "repository": "https://github.com/guldcoin/js-guld-lib",
   "author": "zimmi",
