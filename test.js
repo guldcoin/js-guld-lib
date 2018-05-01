@@ -45,7 +45,7 @@ describe('Blocktree', () => {
     assert.equal(true, true)
   })
   it('initFS', function (done) {
-    this.timeout(100000)
+    this.timeout(150000)
     this.blocktree.initFS().then(() => {
       var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
       assert(plist.length > 0)
@@ -58,6 +58,21 @@ describe('Blocktree', () => {
       assert(klist.indexOf('isysd') >= 0)
       done()
     })
+  })
+  it('initFS again', function (done) {
+    this.timeout(15000)
+    this.blocktree.initFS().then(() => {
+      var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
+      assert(plist.length > 0)
+      assert(plist.indexOf('gg.db') >= 0)
+      var glist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
+      assert(glist.length > 0)
+      assert(glist.indexOf('isysd') >= 0)
+      var klist = cfs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
+      assert(klist.length > 0)
+      assert(klist.indexOf('isysd') >= 0)
+      done()
+    }).catch(done)
   })
   it('getPrice USD', function (done) {
     var t = this;
