@@ -4,11 +4,11 @@
  * @author zimmi
  */
 
-/* global fs:false Amount:false git:false */
+/* global Amount:false git:false */
 
 class Blocktree {
   constructor (cfs, observer) {
-    this.fs = cfs || fs
+    this.fs = cfs
     this.observer = observer || 'guld'
   }
 
@@ -17,8 +17,8 @@ class Blocktree {
     var pricea
     var amtstr
     var re
-    commodity = commodity || 'GULD'
-    base = base || 'USD'
+    if (typeof commodity === 'undefined') commodity = 'GULD'
+    if (typeof base === 'undefined') base = 'USD'
     commodity = commodity.toUpperCase()
     base = base.toUpperCase()
     let filterPricesByTime = line => {
@@ -38,16 +38,19 @@ class Blocktree {
       this.fs.readFile(
         `/BLOCKTREE/${this.observer}/ledger/prices/${commodity.toLowerCase()}.db`,
         'utf-8', (err, pricef) => {
-          if (err) return reject(err)
-          pricef = pricef.split('\n').reverse()
-          pricefl = pricef.filter(filterPricesByTime)
-          re = new RegExp(`${commodity.toUpperCase()} .*[0-9.].*`, 'm')
-          pricea = re.exec(pricefl.join('\n'))
-          if (pricea && pricea.length > 0 && pricea[0].length > 0) {
-            amtstr = pricea[0].replace(commodity.toUpperCase(), '').trim()
-            return resolve(new Amount(amtstr.replace(base, '').trim(), base))
+          if (err) reject(err)
+          else {
+            pricef = pricef.split('\n').reverse()
+            pricefl = pricef.filter(filterPricesByTime)
+            var res = `${commodity.toUpperCase()}[ ]{0,1}.*[0-9.].*`.replace('$', '')
+            re = new RegExp(res, 'm')
+            pricea = re.exec(pricefl.join('\n'))
+            if (pricea && pricea.length > 0 && pricea[0].length > 0) {
+              amtstr = pricea[0].replace(commodity.toUpperCase(), '').trim()
+              var amt = amtstr.replace(base, '').trim()
+              return resolve(new Amount(amt, base))
+            } else reject(new RangeError(`Price not found for commodity ${commodity}`))
           }
-          return reject(new RangeError(`Price not found for commodity ${commodity}`))
         })
     })
   }
@@ -55,21 +58,22 @@ class Blocktree {
   listNames () {
     var namelist = []
     var gname
+    var self = this
     let pushName = line => {
       gname = line.split('/')[0]
       if (namelist.indexOf(gname) === -1) namelist.push(gname)
     }
-    let repo = {
-      fs: this.fs,
-      dir: `/BLOCKTREE/${this.observer}/ledger/GULD`
-    }
-    return git.listFiles(repo).then((keys) => {
-      keys = keys.filter((line) => {
-        return line.indexOf('/') >= 0
-      }).forEach(pushName)
-      return git.listFiles(repo).then((ledgers) => {
-        ledgers.forEach(pushName)
-        return namelist
+    return new Promise((resolve, reject) => {
+      self.fs.readdir(`/BLOCKTREE/${self.observer}/keys/pgp`, (err, keys) => {
+        if (err) return reject(err)
+        keys = keys.filter((line) => {
+          return line.indexOf('/') >= 0
+        }).forEach(pushName)
+        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/GULD`, (err, ledgers) => {
+          if (err) return reject(err)
+          ledgers.forEach(pushName)
+          return resolve(namelist)
+        })
       })
     })
   }
@@ -90,6 +94,47 @@ class Blocktree {
         return (namelist.indexOf(gname) < 0)
       })
     }
+  }
+
+  initFS (seed, ghseed) {
+    var self = this
+    seed = seed || 'guld'
+    ghseed = ghseed || 'guldcoin'
+
+    function clonep (p, rname) {
+      return new Promise(resolve => {
+        self.fs.stat(p, (err, stats) => {
+          if (err || !(stats.isDirectory())) {
+            let url = `https://github.com/${ghseed}/${rname}.git`
+            git.clone({
+              fs: self.fs,
+              dir: p,
+              url: url,
+              singleBranch: true,
+              depth: 1
+            }).then(resolve)
+          } else {
+            git.pull({
+              fs: self.fs,
+              dir: p,
+              singleBranch: true
+            }).then(resolve)
+          }
+        })
+      })
+    }
+
+    return new Promise(resolve => {
+      self.fs.mkdirSync('/BLOCKTREE')
+      self.fs.mkdirSync(`/BLOCKTREE/${seed}`)
+      self.fs.mkdirSync(`/BLOCKTREE/${seed}/ledger`)
+      self.fs.mkdirSync(`/BLOCKTREE/${seed}/keys`)
+      clonep(`/BLOCKTREE/${seed}/ledger/GULD`, 'ledger-guld').then(() => {
+        clonep(`/BLOCKTREE/${seed}/ledger/prices`, 'token-prices').then(() => {
+          clonep(`/BLOCKTREE/${seed}/keys/pgp`, 'keys-pgp').then(resolve)
+        })
+      })
+    })
   }
 }
 

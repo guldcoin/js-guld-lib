@@ -12,11 +12,52 @@ global.Account = ltypes.Account
 global.git = require('isomorphic-git')
 const guldlib = require('./guld-lib.js')
 const Blocktree = guldlib.Blocktree
+const BrowserFS = require('browserfs')
+
+function getBrowserFS (config) {
+  config = config || {fs: 'InMemory'}
+  return new Promise((resolve, reject) => {
+    BrowserFS.configure(config, err => {
+      if (err) reject(err)
+      resolve(BrowserFS.BFSRequire('fs'))
+    })
+  })
+}
+
+var cfs = fs
 
 describe('Blocktree', () => {
+  before(done => {
+    //    var altconfig = {
+    //      fs: 'FolderAdapter',
+    //      options: {
+    //        folder: "tmp",
+    //        wrapped: fs
+    //      }
+    //    }
+    getBrowserFS().then(tfs => {
+      cfs = tfs
+      done()
+    })
+  })
   it('construct', function () {
-    this.blocktree = new Blocktree(fs, 'guld')
+    this.blocktree = new Blocktree(cfs, 'guld')
     assert.equal(true, true)
+  })
+  it('initFS', function (done) {
+    this.timeout(100000)
+    this.blocktree.initFS().then(() => {
+      var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
+      assert(plist.length > 0)
+      assert(plist.indexOf('gg.db') >= 0)
+      var glist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
+      assert(glist.length > 0)
+      assert(glist.indexOf('isysd') >= 0)
+      var klist = cfs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
+      assert(klist.length > 0)
+      assert(klist.indexOf('isysd') >= 0)
+      done()
+    })
   })
   it('getPrice USD', function (done) {
     var t = this;
@@ -37,108 +78,84 @@ describe('Blocktree', () => {
     })()
   })
   it('getPrice XXX', function (done) {
-    var t = this;
-    (async function () {
-      try {
-        await t.blocktree.getPrice('XXX', '$')
-      } catch (err) {
+    var t = this
+    t.blocktree.getPrice('XXX', '$')
+      .then((price) => {
+        assert(price === 'error should have been thrown')
+      })
+      .catch(() => {
         done()
-      }
-    })()
+      })
   })
   it('getPrice GULD', function (done) {
     var t = this;
     (async function () {
-      var p = await t.blocktree.getPrice('guld')
-      var expAmount = new Amount(75, 'USD')
+      var p = await t.blocktree.getPrice('guld', '$')
+      var expAmount = new Amount(75, '$')
       assert(p.equals(expAmount))
       done()
     })()
   })
   it('getPrice GG in GULD', function (done) {
-    var t = this;
-    (async function () {
-      var p = await t.blocktree.getPrice('GG', 'GULD')
+    this.blocktree.getPrice('GG', 'GULD').then(p => {
       var expAmount = new Amount(0.002, 'GULD')
       assert(p.equals(expAmount))
       done()
-    })()
+    }).catch(done)
   })
   it('listNames', function (done) {
-    var t = this;
-    (async function () {
-      var nlist = await t.blocktree.listNames()
+    this.timeout(10000)
+    this.blocktree.listNames().then(nlist => {
       assert(nlist.length > 1000)
       done()
-    })()
+    }).catch(done)
   })
-  it('nameIsValid', function (done) {
-    var t = this;
-    (async function () {
-      var valid = t.blocktree.nameIsValid('iamastupidnamenoonewouldtake-1')
-      assert(valid)
-      done()
-    })()
+  it('nameIsValid', function () {
+    var valid = this.blocktree.nameIsValid('iamastupidnamenoonewouldtake-1')
+    assert(valid)
   })
-  it('nameIsValid uppercase', function (done) {
-    var t = this;
-    (async function () {
-      try {
-        t.blocktree.nameIsValid('ISYSD')
-        done(new RangeError('expected RangeError'))
-      } catch (err) {
-        done()
-      }
-    })()
+  it('nameIsValid uppercase', function () {
+    try {
+      this.blocktree.nameIsValid('ISYSD')
+      assert(true === false)
+    } catch (err) {
+      return err
+    }
   })
-  it('nameIsValid _', function (done) {
-    var t = this;
-    (async function () {
-      try {
-        t.blocktree.nameIsValid('isy_sd')
-        done(new RangeError('expected RangeError'))
-      } catch (err) {
-        done()
-      }
-    })()
+  it('nameIsValid _', function () {
+    try {
+      this.blocktree.nameIsValid('isy_sd')
+      assert(true === false)
+    } catch (err) {
+      return err
+    }
   })
-  it('nameIsValid .', function (done) {
-    var t = this;
-    (async function () {
-      try {
-        t.blocktree.nameIsValid('isy.sd')
-        done(new RangeError('expected RangeError'))
-      } catch (err) {
-        done()
-      }
-    })()
+  it('nameIsValid .', function () {
+    try {
+      this.blocktree.nameIsValid('isy.sd')
+      assert(true === false)
+    } catch (err) {
+      return err
+    }
   })
-  it('nameIsValid :', function (done) {
-    var t = this;
-    (async function () {
-      try {
-        t.blocktree.nameIsValid('isy:sd')
-        done(new RangeError('expected RangeError'))
-      } catch (err) {
-        done()
-      }
-    })()
+  it('nameIsValid :', function () {
+    try {
+      this.blocktree.nameIsValid('isy:sd')
+      assert(true === false)
+    } catch (err) {
+      return err
+    }
   })
-
   it('isNameAvail', function (done) {
-    var t = this;
-    (async function () {
-      var avail = await t.blocktree.isNameAvail('iamastupidnamenoonewouldtake-1')
+    this.blocktree.isNameAvail('iamastupidnamenoonewouldtake-1').then(avail => {
       assert(avail)
       done()
-    })()
+    }).catch(done)
   })
   it('isNameAvail not', function (done) {
-    var t = this;
-    (async function () {
-      var avail = await t.blocktree.isNameAvail('isysd')
+    this.blocktree.isNameAvail('isysd').then(avail => {
       assert(avail === false)
       done()
-    })()
+    })
   })
 })
