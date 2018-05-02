@@ -9,6 +9,7 @@ var ltypes = require('ledger-types')
 global.Amount = ltypes.Amount
 global.Balance = ltypes.Balance
 global.Account = ltypes.Account
+global.Ledger = require('ledger-cli').Ledger
 global.git = require('isomorphic-git')
 const {Blocktree, Transaction, Transfer, Grant, Register} = require('./guld-lib.js')
 const BrowserFS = require('browserfs')
@@ -213,21 +214,21 @@ describe('Blocktree', () => {
       done()
     }).catch(done)
   })
-    it('initFS again', function (done) {
-      this.timeout(150000)
-      this.blocktree.initFS().then(() => {
-        var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
-        assert(plist.length > 0)
-        assert(plist.indexOf('gg.db') >= 0)
-        var glist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
-        assert(glist.length > 0)
-        assert(glist.indexOf('isysd') >= 0)
-        var klist = cfs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
-        assert(klist.length > 0)
-        assert(klist.indexOf('isysd') >= 0)
-        done()
-      }).catch(done)
-    })
+  //  it('initFS again', function (done) {
+  //    this.timeout(150000)
+  //    this.blocktree.initFS().then(() => {
+  //      var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
+  //      assert(plist.length > 0)
+  //      assert(plist.indexOf('gg.db') >= 0)
+  //      var glist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
+  //      assert(glist.length > 0)
+  //      assert(glist.indexOf('isysd') >= 0)
+  //      var klist = cfs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
+  //      assert(klist.length > 0)
+  //      assert(klist.indexOf('isysd') >= 0)
+  //      done()
+  //    }).catch(done)
+  //  })
   it('getPrice USD', function (done) {
     var t = this;
     (async function () {
@@ -326,5 +327,21 @@ describe('Blocktree', () => {
       assert(avail === false)
       done()
     })
+  })
+  it('setLedger', function (done) {
+    this.timeout(15000)
+    assert(typeof this.blocktree.getLedger() === 'undefined')
+    this.blocktree.setLedger().then(() => {
+      assert(typeof this.blocktree.getLedger() !== 'undefined')
+      done()
+    })
+  })
+  it('ledger balance', function (done) {
+    this.timeout(5000)
+    var ledger = this.blocktree.getLedger()
+    var bstream = ledger.balance()
+    bstream.on('data', function (entry) {
+      assert(entry.length > 0)
+    }).once('end', done).once('error', done)
   })
 })

@@ -4,7 +4,7 @@
  * @author zimmi
  */
 
-/* global Amount:false git:false */
+/* global Amount:false git:false Ledger:false */
 
 function mkdirps (p, tfs) {
   try {
@@ -111,6 +111,72 @@ class Blocktree {
   constructor (cfs, observer) {
     this.fs = cfs
     this.observer = observer || 'guld'
+    this._ledger = undefined
+  }
+
+  setLedger () {
+    var self = this
+    var included = ''
+    function mapCommodities (c) {
+      if (c === 'prices') return Promise.resolve()
+      return new Promise((resolve, reject) => {
+        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/${c}`,
+          (err, users) => {
+            if (err) return reject(err)
+            users = users.filter(u => {
+              if (u.startsWith('.')) return false
+              else if (u.endsWith('.dat')) {
+                included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/${c}/${u}`
+                return false
+              } else {
+                return true
+              }
+            })
+            var promises = users.map(u => {
+              return mapUsers(c, u)
+            })
+            Promise.all(promises).then(resolve).catch(reject)
+          })
+      })
+    }
+    function mapUsers (c, u) {
+      return new Promise((resolve, reject) => {
+        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/${c}/${u}`,
+          (err, files) => {
+            if (err) return reject(err)
+            files.forEach(f => {
+              if (f.endsWith('.dat')) {
+                included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/${c}/${u}/${f}`
+              }
+            })
+            resolve()
+          })
+      })
+    }
+    return new Promise((resolve, reject) => {
+      self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/prices/`,
+        (err, prices) => {
+          if (err) return reject(err)
+          prices.forEach(price => {
+            if (price.endsWith('.db')) {
+              included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/prices/${price}`
+            }
+          })
+          self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/`,
+            (err, commodities) => {
+              if (err) return reject(err)
+              var promises = commodities.map(mapCommodities)
+              Promise.all(promises).then(() => {
+                self._ledger = new Ledger({'file': '-', 'raw': included, 'debug': true})
+                resolve()
+              }).catch(reject)
+            })
+        })
+    })
+  }
+
+  getLedger () {
+    return this._ledger
   }
 
   getPrice (commodity, base) {
@@ -236,6 +302,10 @@ class Blocktree {
         }).catch(reject)
       }).catch(reject)
     })
+  }
+
+  ledgerBalance () {
+
   }
 }
 
