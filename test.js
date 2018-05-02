@@ -57,10 +57,10 @@ describe('Blocktree', () => {
       assert(klist.length > 0)
       assert(klist.indexOf('isysd') >= 0)
       done()
-    })
+    }).catch(done)
   })
   it('initFS again', function (done) {
-    this.timeout(15000)
+    this.timeout(150000)
     this.blocktree.initFS().then(() => {
       var plist = cfs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
       assert(plist.length > 0)
