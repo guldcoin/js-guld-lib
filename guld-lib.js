@@ -1,18 +1,23 @@
 /**
- * @module js-guld-lib
+ * @module guld-lib
  * @license MIT
  * @author zimmi
  */
 
-/* global Amount:false git:false Ledger:false */
+const { EventEmitter } = require('events')
+const git = require('isomorphic-git')
+const { Amount } = require('ledger-types')
+const { Ledger } = require('ledger-cli-browser')
+const pify = require('pify')
 
 function mkdirps (p, tfs) {
-  try {
-    tfs.mkdirSync(p)
-    return
-  } catch (e) {
-    return e
-  }
+  return new Promise((resolve, reject) => {
+    try {
+      resolve(tfs.mkdir(p))
+    } catch (e) {
+      reject(e)
+    }
+  })
 }
 
 class Transaction {
@@ -107,72 +112,70 @@ class Register extends Transaction {
   }
 }
 
-class Blocktree {
+class Blocktree extends EventEmitter {
   constructor (cfs, observer) {
+    super()
     this.fs = cfs
     this.observer = observer || 'guld'
     this._ledger = undefined
+    this.initialized = false
   }
 
-  setLedger () {
+  setLedger (re) {
     var self = this
     var included = ''
-    function mapCommodities (c) {
-      if (c === 'prices') return Promise.resolve()
+
+    function includeFile (path) {
       return new Promise((resolve, reject) => {
-        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/${c}`,
-          (err, users) => {
-            if (err) return reject(err)
-            users = users.filter(u => {
-              if (u.startsWith('.')) return false
-              else if (u.endsWith('.dat')) {
-                included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/${c}/${u}`
-                return false
-              } else {
-                return true
-              }
-            })
-            var promises = users.map(u => {
-              return mapUsers(c, u)
-            })
-            Promise.all(promises).then(resolve).catch(reject)
-          })
-      })
-    }
-    function mapUsers (c, u) {
-      return new Promise((resolve, reject) => {
-        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/${c}/${u}`,
-          (err, files) => {
-            if (err) return reject(err)
-            files.forEach(f => {
-              if (f.endsWith('.dat')) {
-                included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/${c}/${u}/${f}`
-              }
-            })
+        self.fs.readFile(path, 'utf8', (err, data) => {
+          if (err) reject(err)
+          if (!re || re.test(data)) {
+            included = `${included}\n${data}\n`
             resolve()
-          })
+          } else resolve()
+        })
       })
     }
-    return new Promise((resolve, reject) => {
-      self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/prices/`,
-        (err, prices) => {
-          if (err) return reject(err)
-          prices.forEach(price => {
-            if (price.endsWith('.db')) {
-              included = `${included}\ninclude /BLOCKTREE/${self.observer}/ledger/prices/${price}`
-            }
+
+    function checkLine (path, l) {
+      var newpath = `${path}/${l}`
+      if (l.startsWith('.')) return Promise.resolve()
+      else if (l.endsWith('.dat') || l.endsWith('.db')) {
+        return includeFile(newpath)
+      } else {
+        return new Promise((resolve, reject) => {
+          self.fs.stat(newpath, (err, stats) => {
+            if (err) return resolve()
+            else if (stats.isDirectory()) {
+              includeRecursive(newpath).then(resolve).catch(reject)
+            } else resolve()
           })
-          self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/`,
-            (err, commodities) => {
-              if (err) return reject(err)
-              var promises = commodities.map(mapCommodities)
-              Promise.all(promises).then(() => {
-                self._ledger = new Ledger({'file': '-', 'raw': included, 'debug': true})
-                resolve()
-              }).catch(reject)
-            })
         })
-    })
+      }
+    }
+
+    function includeRecursive (path) {
+      return new Promise((resolve, reject) => {
+        self.fs.readdir(path, (err, list) => {
+          if (err) return reject(err)
+          Promise.all(list.map(l => {
+            return checkLine(path, l)
+          })).then(resolve).catch(reject)
+        })
+      })
+    }
+
+    return includeRecursive(`/BLOCKTREE/${self.observer}/ledger`)
+      .then(() => {
+        var cfg = {'file': '-', 'raw': included}
+        if (re) {
+          cfg['query'] = re
+        } if (typeof chrome !== 'undefined') {
+          cfg['binary'] = 'chrome'
+        }
+        self._ledger = new Ledger(cfg)
+        return self._ledger
+      })
   }
 
   getLedger () {
@@ -229,17 +232,13 @@ class Blocktree {
       gname = line.split('/')[0]
       if (namelist.indexOf(gname) === -1) namelist.push(gname)
     }
-    return new Promise((resolve, reject) => {
-      self.fs.readdir(`/BLOCKTREE/${self.observer}/keys/pgp`, (err, keys) => {
-        if (err) return reject(err)
-        keys = keys.filter((line) => {
-          return line.indexOf('/') >= 0
-        }).forEach(pushName)
-        self.fs.readdir(`/BLOCKTREE/${self.observer}/ledger/GULD`, (err, ledgers) => {
-          if (err) return reject(err)
-          ledgers.forEach(pushName)
-          return resolve(namelist)
-        })
+    return pify(self.fs.readdir)(`/BLOCKTREE/${self.observer}/keys/pgp`).then(keys => {
+      keys = keys.filter((line) => {
+        return line.indexOf('/') >= 0
+      }).forEach(pushName)
+      return pify(self.fs.readdir)(`/BLOCKTREE/${self.observer}/ledger/GULD`).then(ledgers => {
+        ledgers.forEach(pushName)
+        return namelist
       })
     })
   }
@@ -253,7 +252,12 @@ class Blocktree {
   }
 
   isNameAvail (gname) {
-    if (!this.nameIsValid(gname)) {
+    try {
+      var valid = this.nameIsValid(gname)
+    } catch (e) {
+      return Promise.reject(e)
+    }
+    if (!this.initialized || !valid) {
       return Promise.resolve(false)
     } else {
       return this.listNames().then(namelist => {
@@ -266,41 +270,109 @@ class Blocktree {
     var self = this
     seed = seed || 'guld'
     ghseed = ghseed || 'guldcoin'
-
     function clonep (p, rname) {
+      function pull () {
+        return git.pull({
+          fs: self.fs,
+          dir: p,
+          gitdir: `${p}/.git`,
+          fastForwardOnly: true,
+          singleBranch: true
+        })
+      }
       return new Promise((resolve, reject) => {
+        var ghurl = `https://github.com/${ghseed}/${rname}.git`
         self.fs.stat(p, (err, stats) => {
           if (err || !(stats.isDirectory())) {
             git.clone({
               fs: self.fs,
               dir: p,
-              url: `https://github.com/${ghseed}/${rname}.git`,
+              gitdir: `${p}/.git`,
+              url: ghurl,
               singleBranch: true,
               depth: 1
             }).then(resolve).catch(reject)
           } else {
-            git.pull({
+            git.log({
               fs: self.fs,
               dir: p,
               gitdir: `${p}/.git`,
-              fastForwardOnly: true,
-              singleBranch: true
-            }).then(resolve).catch(reject)
+              depth: 1
+            }).then(commit => {
+              git.getRemoteInfo({'url': ghurl}).then(info => {
+                if (commit[0].oid !== info.refs.heads.master) {
+                  pull().then(resolve).catch(reject)
+                } else resolve()
+              }).catch(reject)
+            }).catch(() => {
+              pull().then(resolve).catch(reject)
+            })
           }
         })
       })
     }
 
     return new Promise((resolve, reject) => {
-      mkdirps('/BLOCKTREE', self.fs)
-      mkdirps(`/BLOCKTREE/${seed}`, self.fs)
-      mkdirps(`/BLOCKTREE/${seed}/ledger`, self.fs)
-      mkdirps(`/BLOCKTREE/${seed}/keys`, self.fs)
-      clonep(`/BLOCKTREE/${seed}/ledger/GULD`, 'ledger-guld').then(() => {
+      mkdirps('/BLOCKTREE', self.fs).then(() => {
+        return mkdirps(`/BLOCKTREE/${seed}`, self.fs)
+      }).then(() => {
+        return mkdirps(`/BLOCKTREE/${seed}/ledger`, self.fs)
+      }).then(() => {
+        return mkdirps(`/BLOCKTREE/${seed}/keys`, self.fs)
+      }).then(() => {
+        // console.log('made pre-dirs')
         clonep(`/BLOCKTREE/${seed}/ledger/prices`, 'token-prices').then(() => {
-          clonep(`/BLOCKTREE/${seed}/keys/pgp`, 'keys-pgp').then(resolve).catch(reject)
+          // console.log('cloned token-prices')
+          clonep(`/BLOCKTREE/${seed}/keys/pgp`, 'keys-pgp').then(() => {
+            // console.log('cloned keys-pgp')
+            clonep(`/BLOCKTREE/${seed}/ledger/GULD`, 'ledger-guld').then(() => {
+              // console.log('cloned ledger-guld')
+              self.emit('initialized')
+              self.initialized = true
+              resolve()
+            }).catch(reject)
+          }).catch(reject)
         }).catch(reject)
-      }).catch(reject)
+      })
+    })
+  }
+
+  mapNamesToFPR (fpr) {
+    var self = this
+    if (typeof fpr === 'string') fpr = [fpr]
+    var kn = {}
+    return new Promise((resolve, reject) => {
+      function maybeResolve () {
+        if (fpr.length === 0) {
+          resolve(kn)
+          return true
+        } else return false
+      }
+      self.fs.readdir(`/BLOCKTREE/${self.observer}/keys/pgp/`, (error, names) => {
+        if (error) reject(error)
+        else {
+          for (var i = 0; i < names.length; i++) {
+            if (maybeResolve()) return
+            var p = `/BLOCKTREE/${self.observer}/keys/pgp/${names[i]}`
+            self.fs.readdir(p, (err, keys) => {
+              if (fpr.length === 0) return maybeResolve()
+              else if (!(err)) {
+                keys.forEach(key => {
+                  key = key.replace('.asc', '')
+                  if (fpr.indexOf(key) >= 0) {
+                    kn[key] = names[i]
+                    fpr = fpr.filter(f => {
+                      return f !== key
+                    })
+                    maybeResolve()
+                  }
+                })
+                return reject(new Error('No names found.'))
+              }
+            })
+          }
+        }
+      })
     })
   }
 

@@ -1,6 +1,6 @@
-# js-guld-lib
+# guld-lib
 
-Javascript types for [ledger-cli](https://ledger-cli.org) data, using decimal.js for numbers.
+Javascript library for interacting with [guld](https://guld.io).
 
 ### Tests
 
