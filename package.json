@@ -1,5 +1,5 @@
 {
-  "name": "js-guld-lib",
+  "name": "guld-lib",
   "main": "./guld-lib.js",
   "version": "0.1.0",
   "description": "Javascript library for interacting with guld.",
