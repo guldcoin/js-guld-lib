@@ -97,38 +97,6 @@ describe('Blocktree', () => {
       done()
     })
   })
-  it('setLedger', function (done) {
-    this.timeout(60000)
-    assert(typeof this.blocktree.getLedger() === 'undefined')
-    this.blocktree.setLedger().then(() => {
-      assert(typeof this.blocktree.getLedger() !== 'undefined')
-      done()
-    })
-  })
-  it('ledger balance', function (done) {
-    this.timeout(10000)
-    var ledger = this.blocktree.getLedger()
-    ledger.balance().then(bals => {
-      assert(typeof bals !== 'undefined')
-      assert(bals.hasOwnProperty('isysd'))
-      assert(bals.isysd.hasOwnProperty('Assets'))
-      assert(bals.isysd.Assets._bal().hasOwnProperty('GULD'))
-      assert(bals.isysd.Assets._bal().GULD.greaterThanOrEqualTo(new Amount(0, 'GULD')))
-      assert(bals.isysd.Assets._bal().GG.greaterThanOrEqualTo(new Amount(0, 'GG')))
-    }).catch(done)
-  })
-  it('ledger balance user', function (done) {
-    var ledger = this.blocktree.getLedger()
-    ledger.balance('isysd').then(bals => {
-      assert(bals.hasOwnProperty('isysd'))
-      assert(bals.isysd.hasOwnProperty('Assets'))
-      assert(bals.isysd.Assets._bal().hasOwnProperty('GULD'))
-      assert(bals.isysd.Assets._bal().GULD.greaterThanOrEqualTo(new Amount(0, 'GULD')))
-      assert(bals.isysd.Assets._bal().GG.greaterThanOrEqualTo(new Amount(0, 'GG')))
-      assert(!bals.hasOwnProperty('cz'))
-      done()
-    }).catch(done)
-  })
   it('mapNamesToFPR single', function (done) {
     var p = this.blocktree.mapNamesToFPR('C7EA0E59D0660BF6848614B6441BDDD420F44729')
     p.then(n => {
