@@ -102,11 +102,17 @@ async function getZipFixtureFS () {
     options: {
       '/': {
         fs: STYPE,
-        options: {}
+        options: {
+          "storeType": "local",
+          "cacheSize": 500
+        }
       },
       '/BLOCKTREE': {
         fs: STYPE,
-        options: {}
+        options: options: {
+          "storeType": "local",
+          "cacheSize": 500
+        }
       },
       '/BLOCKTREE/guld': {
         fs: 'ZipFS',
@@ -124,7 +130,10 @@ async function getDefaultStorageFS () {
   if (STYPE === 'node') return pify(require('fs'))
   var config = {
     fs: STYPE,
-    options: {}
+    options: {
+      "storeType": "local",
+      "cacheSize": 500
+    }
   }
   return getBrowserFS(config)
 }
