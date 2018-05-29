@@ -14,12 +14,11 @@ const aggregation = require('aggregation/es6')
 var zipdata
 var bfsconf = pify(BrowserFS.configure)
 var fs
-var nodefs
 let STYPE
 
 if (BROWSER && BROWSER.name.startsWith('node')) {
   try {
-    nodefs = pify(require('fs'))
+    var nodefs = pify(require('fs'))
     nodefs = new GuldFS(nodefs)
     STYPE = 'node'
   } catch (e) {
