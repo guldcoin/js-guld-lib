@@ -5,11 +5,14 @@ const {Amount} = require('ledger-types')
 const {Ledger} = require('ledger-cli-browser')
 
 class GuldLedger extends aggregation(
-  GuldComponent,
-  Ledger
+  Ledger,
+  GuldComponent
 ) {
   constructor (config) {
+    config.options = config.options || {}
+    config.options = Object.assign(config.options, {fs: config.observer.fs, db: config.observer.db, hosts: config.observer.hosts})
     super(config)
+    this.observer = config.observer
   }
 
   async isInitialized () {
@@ -26,8 +29,8 @@ class GuldLedger extends aggregation(
     sender = sender || gname
     time = time || Transaction.getTimestamp(tx)
     var repoDir = `/BLOCKTREE/${gname}/ledger/${comm}/${sender}/`
-    await fs.mkdirps(repoDir)
-    await fs.writeFile(`${repoDir}${time}.dat`, tx.raw)
+    await this.observer.fs.mkdirps(repoDir)
+    await this.observer.fs.writeFile(`${repoDir}${time}.dat`, tx.raw)
     this.observer.git.add(`ledger/${comm}`, `${sender}/${time}.dat`)
     var hash = this.observer.git.commit(`ledger/${comm}`, time)
     var objid = this.observer.git.signCommit(`ledger/${comm}`)

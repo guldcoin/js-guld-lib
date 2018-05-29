@@ -36,14 +36,17 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
     for (var fn in tfs) {
       this[fn] = tfs[fn]
     }
+    this.mkdirp = extraFS.mkdirp
+    this.cpr = extraFS.cpr
+    this.copyFile = supplimentFS.copyFile
   }
 
   static async getFS (o) {
     // check for cached instance
     if (this instanceof GuldFS) return this
-    else if (this.fs instanceof GuldFS) return this.fs
+    else if (this && this.fs instanceof GuldFS) return this.fs
     else if (o instanceof GuldFS) return o
-    else if (o.fs instanceof GuldFS) return o.fs
+    else if (o && o.fs instanceof GuldFS) return o.fs
     // attempt to get primary choice of either node fs or chrome storage
     if (STYPE === 'node' && typeof require !== 'undefined' && nodefs) {
       try {
@@ -57,8 +60,8 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
         fs = new GuldFS(fs)
       }
     } else {
-      fs = await getDefaultStorageFS()
-      //      fs = await getZipFixtureFS()
+//      fs = await getDefaultStorageFS()
+      fs = await getZipFixtureFS()
       fs.observer = o
       fs = new GuldFS(fs)
     }
@@ -78,13 +81,17 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
 
   async isInitialized (oname) {
     oname = oname || this.observer.name
-    await this.readdir(`/BLOCKTREE/${oname}/ledger/GULD`)
-    await this.readdir(`/BLOCKTREE/${oname}/keys/pgp`)
+    var inited = true
+    await this.readdir(`/BLOCKTREE/${oname}/ledger/GULD`).catch(e => inited = false)
+    await this.readdir(`/BLOCKTREE/${oname}/ledger/GG`).catch(e => inited = false)
+    await this.readdir(`/BLOCKTREE/${oname}/keys/pgp`).catch(e => inited = false)
+    return inited
   }
 
   async init () {
-    await this.mkdirp(`/BLOCKTREE/${this.observer.name}/ledger`)
-    await this.mkdirp(`/BLOCKTREE/${this.observer.name}/keys`)
+    await this.mkdirp(`/BLOCKTREE/${this.observer.name}/ledger/GULD`)
+    await this.mkdirp(`/BLOCKTREE/${this.observer.name}/ledger/prices`)
+    await this.mkdirp(`/BLOCKTREE/${this.observer.name}/keys/pgp`)
   }
 
   async cpBlocktree (from, to) {
@@ -102,12 +109,15 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
 }
 
 async function getBrowserFS (config = {}) {
-  await bfsconf(config)
-  return pify(BrowserFS.BFSRequire('fs'))
+  return bfsconf(config).then(async (e) => {
+    if (e) throw e
+    var fs = pify(BrowserFS.BFSRequire('fs'))
+    return fs
+  })
 }
 
 async function getZipFixtureFS () {
-  zipdata = zipdata || Buffer(await readOrFetch('fixtures/guld.zip'))
+  zipdata = zipdata || await readOrFetch('fixtures/guld.zip')
   var config = {
     fs: 'MountableFileSystem',
     options: {
@@ -138,7 +148,7 @@ async function getZipFixtureFS () {
 }
 
 async function getDefaultStorageFS () {
-  if (STYPE === 'node') return pify(require('fs'))
+  if (STYPE === 'node') return nodefs
   var config = {
     fs: STYPE,
     options: {

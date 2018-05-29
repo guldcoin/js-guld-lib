@@ -18,6 +18,7 @@
     "browserfs": "git+https://github.com/isysd/BrowserFS.git#cache",
     "decimal.js": "^10.0.0",
     "detect-browser": "^2.5.0",
+    "flexfs": "^2.2.1",
     "isomorphic-git": "git+https://github.com/isysd/isomorphic-git.git",
     "keyring-pgp": "git+https://github.com/isysd/keyring-pgp.git",
     "keyvaluedb": "git+https://github.com/isysd/keyvaluedb.git",

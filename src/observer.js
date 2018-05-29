@@ -7,6 +7,7 @@ const global = require('window-or-global')
 const GuldFS = require('./fs.js')
 const logger = require('./log.js')
 const GuldDB = require('./db.js')
+const GitGuld = require('./git.js')
 const GuldKeyring = require('./keyring.js')
 const GuldLedger = require('./ledger.js')
 
@@ -14,12 +15,12 @@ class Observer extends EventEmitter {
   constructor (config = {}) {
     super(config)
     this.initialized = false
-    var observer = config.observer || this.guldObserver
+    this.observer = this
+    var observer = Object.assign(this.guldObserver, config.observer)
     for (var prop in observer) {
       this[prop] = observer[prop]
     }
     this.log = logger
-    this.observer = this
   }
 
   get guldObserver () {
@@ -38,15 +39,17 @@ class Observer extends EventEmitter {
   }
 
   async init () {
-    this.initComponent('db', async (o) => new GuldDB({observer: o}))
-    var observer = this.db.get('observer')
+    await this.initComponent('db', async (o) => new GuldDB({observer: o}))
+    var observer = await this.db.get('observer')
     for (p in observer) {
       this[p] = observer[p]
     }
-    this.initComponent('fs', GuldFS.getFS)
-    this.initComponent('git', async (o) => { new GitGuld({observer: o}) })
-    this.initComponent('keyring', async (o) => { new GuldKeyring({observer: o}) })
-    this.initComponent('ledger', async (o) => { new GuldLedger({observer: o}) })
+    await this.initComponent('fs', GuldFS.getFS)
+    await this.initComponent('git', async (o) => new GitGuld({observer: o}))
+    await this.initComponent('keyring', async (o) => new GuldKeyring({observer: o}))
+    var lconf = GuldLedger.getDefaults()
+    lconf.observer = this
+    await this.initComponent('ledger', async (o) => new GuldLedger(lconf))
     this.initialized = true
     this.emit('initialized')
   }
@@ -76,17 +79,18 @@ class Observer extends EventEmitter {
       gname = line.split('/')[0]
       if (namelist.indexOf(gname) === -1) namelist.push(gname)
     }
-    (await pify(fs.readdir)(`/BLOCKTREE/${this.name}/keys/pgp`)).forEach((line) => {
+    (await pify(fs.readdir)(`/BLOCKTREE/${this.observer.name}/keys/pgp`)).forEach((line) => {
       return line.indexOf('/') >= 0
     }).forEach(pushName)
-    var ledgers = await pify(fs.readdir)(`/BLOCKTREE/${this.name}/ledger/GULD`)
+    var ledgers = await pify(fs.readdir)(`/BLOCKTREE/${this.observer.name}/ledger/GULD`)
     ledgers.forEach(pushName)
     return namelist
   }
 
   async isGuldNameAvail (gname) {
+    gname = gname || this.name || this.observer.name
     try {
-      var valid = Blocktree.nameIsValid(gname)
+      var valid = Observer.nameIsValid(gname)
     } catch (e) {
       return Promise.reject(e)
     }
@@ -107,29 +111,6 @@ class Observer extends EventEmitter {
           else resolve(global)
         })
       } else resolve(global)
-    })
-  }
-
-  // session flow
-  async login () {
-
-  }
-
-  async logout () {
-    // if (e && e.preventDefault) e.preventDefault()
-    return getBackground().then((b) => {
-      this._hosts.gh.client = undefined
-      this._hosts.gh.creds = undefined
-      this._hosts.gh.name = ''
-      this._hosts.gh.mail = ''
-      this._hosts.gh.keyid = ''
-      this._hosts.gh.avatar = ''
-      this._hosts.gh.oauth = ''
-      this.name = 'guld'
-      this.mail = ''
-      this.fpr = ''
-      this.fullname = ''
-      this._keyring = null
     })
   }
 }

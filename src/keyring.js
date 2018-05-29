@@ -30,5 +30,5 @@ class GuldKeyring extends aggregation(
     }
   }
 }
-console.log(GuldKeyring)
+
 module.exports = GuldKeyring
