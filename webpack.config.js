@@ -19,6 +19,9 @@ module.exports = [
       aggregateTimeout: 1000,
       poll: 1000
     },
+    node: {
+      fs: "empty"
+    },
     module: {
       rules: [
         {
