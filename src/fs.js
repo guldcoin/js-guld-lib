@@ -41,10 +41,17 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
     else if (o.fs instanceof GuldFS) return o.fs
     // attempt to get primary choice of either node fs or chrome storage
     var fs
-    if (STYPE === 'node') {
-      fs = pify(require('fs'))
-      fs.observer = o
-      fs = new GuldFS(fs)
+    if (STYPE === 'node' && typeof require !== 'undefined') {
+      try {
+        fs = pify(require('fs'))
+        fs.observer = o
+        fs = new GuldFS(fs)
+      } catch (e) {
+        fs = await getDefaultStorageFS()
+        //      fs = await getZipFixtureFS()
+        fs.observer = o
+        fs = new GuldFS(fs)
+      }
     } else {
       fs = await getDefaultStorageFS()
       //      fs = await getZipFixtureFS()
