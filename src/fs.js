@@ -14,11 +14,17 @@ const aggregation = require('aggregation/es6')
 var zipdata
 var bfsconf = pify(BrowserFS.configure)
 var fs
-
+var nodefs
 let STYPE
 
 if (BROWSER && BROWSER.name.startsWith('node')) {
-  STYPE = 'node'
+  try {
+    nodefs = pify(require('fs'))
+    nodefs = new GuldFS(nodefs)
+    STYPE = 'node'
+  } catch (e) {
+    STYPE = 'ChromeStorage'
+  }
 } else if (BROWSER && BROWSER.name.startsWith('chrom')) {
   STYPE = 'ChromeStorage'
 } else {
@@ -40,10 +46,9 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
     else if (o instanceof GuldFS) return o
     else if (o.fs instanceof GuldFS) return o.fs
     // attempt to get primary choice of either node fs or chrome storage
-    var fs
-    if (STYPE === 'node' && typeof require !== 'undefined') {
+    if (STYPE === 'node' && typeof require !== 'undefined' && nodefs) {
       try {
-        fs = pify(require('fs'))
+        fs = pify(nodefs)
         fs.observer = o
         fs = new GuldFS(fs)
       } catch (e) {
