@@ -11,7 +11,7 @@ module.exports = {
   GuldDB: require('./db.js'),
   GuldKeyring: require('./keyring.js'),
   GuldLedger: require('./ledger.js'),
-    transaction: {
+  transaction: {
     Transaction: require('./transaction/transaction.js'),
     Grant: require('./transaction/grant.js'),
     Transfer: require('./transaction/transfer.js'),

@@ -7,7 +7,6 @@ class GuldKeyring extends aggregation(
   GuldComponent,
   o2c(pgpKeyring, 'PGPKeyring')
 ) {
-
   async mapNamesToFPR (fpr) {
     if (typeof fpr === 'string') fpr = [fpr]
     var kn = {}

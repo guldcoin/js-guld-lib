@@ -12,7 +12,7 @@ class GuldLedger extends aggregation(
     super(config)
   }
 
-  async isInitialized() {
+  async isInitialized () {
     return (this.options && this.options.journal && this._account)
   }
 

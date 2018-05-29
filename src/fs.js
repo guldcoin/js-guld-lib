@@ -47,7 +47,7 @@ class GuldFS extends aggregation(GuldComponent, SupplimentFS, ExtraFS) {
       fs = new GuldFS(fs)
     } else {
       fs = await getDefaultStorageFS()
-//      fs = await getZipFixtureFS()
+      //      fs = await getZipFixtureFS()
       fs.observer = o
       fs = new GuldFS(fs)
     }
@@ -103,15 +103,15 @@ async function getZipFixtureFS () {
       '/': {
         fs: STYPE,
         options: {
-          "storeType": "local",
-          "cacheSize": 500
+          'storeType': 'local',
+          'cacheSize': 500
         }
       },
       '/BLOCKTREE': {
         fs: STYPE,
-        options: options: {
-          "storeType": "local",
-          "cacheSize": 500
+        options: {
+          'storeType': 'local',
+          'cacheSize': 500
         }
       },
       '/BLOCKTREE/guld': {
@@ -131,8 +131,8 @@ async function getDefaultStorageFS () {
   var config = {
     fs: STYPE,
     options: {
-      "storeType": "local",
-      "cacheSize": 500
+      'storeType': 'local',
+      'cacheSize': 500
     }
   }
   return getBrowserFS(config)

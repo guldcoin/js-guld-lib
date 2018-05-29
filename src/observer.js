@@ -11,7 +11,7 @@ const GuldKeyring = require('./keyring.js')
 const GuldLedger = require('./ledger.js')
 
 class Observer extends EventEmitter {
-  constructor (config={}) {
+  constructor (config = {}) {
     super(config)
     this.initialized = false
     var observer = config.observer || this.guldObserver
@@ -44,9 +44,9 @@ class Observer extends EventEmitter {
       this[p] = observer[p]
     }
     this.initComponent('fs', GuldFS.getFS)
-    this.initComponent('git', async (o) => {new GitGuld({observer: o})})
-    this.initComponent('keyring', async (o) => {new GuldKeyring({observer: o})})
-    this.initComponent('ledger', async (o) => {new GuldLedger({observer: o})})
+    this.initComponent('git', async (o) => { new GitGuld({observer: o}) })
+    this.initComponent('keyring', async (o) => { new GuldKeyring({observer: o}) })
+    this.initComponent('ledger', async (o) => { new GuldLedger({observer: o}) })
     this.initialized = true
     this.emit('initialized')
   }
