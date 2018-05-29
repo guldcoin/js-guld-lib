@@ -1,7 +1,7 @@
 {
   "name": "guld-lib",
   "main": "./guld-lib.js",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Javascript library for interacting with guld.",
   "repository": "https://github.com/guldcoin/js-guld-lib",
   "author": "zimmi",
@@ -9,17 +9,21 @@
   "scripts": {
     "test": "mocha",
     "build": "./node_modules/.bin/webpack",
-    "lint": "eslint --env browser lib/*.js* test/*.js*",
-    "fix": "eslint --fix lib/*.js* test/*.js*",
+    "lint": "eslint --env browser *.js* src/*.js* test/*.js*",
+    "fix": "eslint --fix *.js* src/*.js* test/*.js*",
     "pre-commit": "npm run test && npm run lint"
   },
   "dependencies": {
-    "browserfs": "https://github.com/isysd/BrowserFS.git#cache",
-    "isomorphic-git": "https://github.com/isysd/isomorphic-git.git",
-    "ledger-cli-browser": "^0.3.2",
-    "ledger-types": "^1.2.1",
+    "aggregation": "^1.2.3",
+    "browserfs": "git+https://github.com/isysd/BrowserFS.git#cache",
     "decimal.js": "^10.0.0",
-    "pify": "^3.0.0",
+    "detect-browser": "^2.5.0",
+    "isomorphic-git": "git+https://github.com/isysd/isomorphic-git.git",
+    "keyring-pgp": "git+https://github.com/isysd/keyring-pgp.git",
+    "keyvaluedb": "git+https://github.com/isysd/keyvaluedb.git",
+    "ledger-cli-browser": "git+https://github.com/isysd/ledger-cli-browser.git",
+    "ledger-types": "git+https://github.com/isysd/ledger-types.git",
+    "pify": "git+https://github.com/isysd/pify.git",
     "window-or-global": "^1.0.1"
   },
   "devDependencies": {

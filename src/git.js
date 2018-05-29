@@ -1,25 +1,56 @@
-const isogit = require('isomorphic-git')
-const global = require('window-or-global')
+const GuldComponent = require('./component.js')
+const {commit, pull, push, add, clone, log, getRemoteInfo} = require('isomorphic-git')
 const { DBError } = require('keyvaluedb')
-const observer = global.observer
-const fs = global.fs
-let auth = {
-  username: observer.name,
-  password: ''
-}
 
-class git {
-  constructor (auth) {
-    this.auth = auth
-    this.git = isogit
-    global.git = this
+class GitGuld extends GuldComponent {
+  constructor (config) {
+    super(config)
+  }
+
+  async isInitialized () {
+    var ps = await Promise.all([
+      [`keys/pgp`, `keys-pgp`],
+      [`ledger/GULD`, `ledger-GULD`],
+      [`ledger/prices`, `token-prices`],
+      [`ledger/GG`, `ledger-GG`]
+    ].map(d => {
+      return this.isBehind(`/BLOCKTREE/${this.observer.name}/${d[0]}`, `https://github.com/guldcoin/${d[1]}.git`)
+    }))
+    for (var p; p < ps.length; p++) {
+      if (ps[p]) return false
+    }
+    return true
+  }
+
+  async isBehind (p, url) {
+    var commit = await log({
+      fs: this.observer.fs,
+      dir: p,
+      gitdir: `${p}/.git`,
+      depth: 1
+    })
+    var info = {'url': url, auth: this.observer.hosts[0].auth}
+    try {
+      var resp = await getRemoteInfo(info)
+      return commit[0].oid !== resp.refs.heads['master']
+    } catch (e) {
+      console.error(e)
+      return false // hack for offline mode
+    }
+  }
+
+  async init () {
+    // TODO check for read-only fs
+    await git.clonep(`ledger/prices`, `https://github.com/${this.observer.name}/token-prices.git`)
+    await git.clonep(`keys/pgp`, `https://github.com/${this.observer.name}/keys-pgp.git`)
+    await git.clonep(`ledger/GULD`, `https://github.com/${this.observer.name}/ledger-guld.git`)
   }
 
   async commit (partial, time) {
-    return this.git.commit({
-      fs: fs,
-      dir: `/BLOCKTREE/${observer['name']}/${partial}/`,
-      gitdir: `/BLOCKTREE/${observer['name']}/${partial}/.git`,
+    return commit({
+      fs: this.observer.fs,
+      dir: `/BLOCKTREE/${this.observer.name}/${partial}/`,
+      gitdir: `/BLOCKTREE/${this.observer.name}/${partial}/.git`,
       message: `guld app transaction`,
       author: {
         name: observer['fullname'],
@@ -31,83 +62,85 @@ class git {
   }
 
   async pull (partial, ref = 'master') {
-    return this.git.pull({
-      fs: fs,
-      dir: `/BLOCKTREE/${observer['name']}/${partial}/`,
-      gitdir: `/BLOCKTREE/${observer['name']}/${partial}/.git`,
+    return pull({
+      fs: this.observer.fs,
+      dir: `/BLOCKTREE/${this.observer.name}/${partial}/`,
+      gitdir: `/BLOCKTREE/${this.observer.name}/${partial}/.git`,
       ref: ref,
-      authUsername: this.auth.username,
-      authPassword: this.auth.password
+      authUsername: this.observer.hosts[0].auth.username,
+      authPassword: this.observer.hosts[0].auth.password
     })
   }
 
   async push (partial, ref = 'master', remote = 'origin') {
-    return this.git.push({
-      fs: fs,
-      dir: `/BLOCKTREE/${observer['name']}/${partial}/`,
-      gitdir: `/BLOCKTREE/${observer['name']}/${partial}/.git`,
+    return push({
+      fs: this.observer.fs,
+      dir: `/BLOCKTREE/${this.observer.name}/${partial}/`,
+      gitdir: `/BLOCKTREE/${this.observer.name}/${partial}/.git`,
       remote: remote,
       ref: ref,
-      authUsername: this.auth.username,
-      authPassword: this.auth.password
+      authUsername: this.observer.hosts[0].auth.username,
+      authPassword: this.observer.hosts[0].auth.password
     })
   }
 
   async add (partial, filepath) {
-    return this.git.add({
-      fs: fs,
-      dir: `/BLOCKTREE/${observer['name']}/${partial}/`,
-      gitdir: `/BLOCKTREE/${observer['name']}/${partial}/.git`,
+    return add({
+      fs: this.observer.fs,
+      dir: `/BLOCKTREE/${this.observer.name}/${partial}/`,
+      gitdir: `/BLOCKTREE/${this.observer.name}/${partial}/.git`,
       filepath: filepath
     })
   }
 
   async clone (partial, url) {
-    var p = `/BLOCKTREE/${observer['name']}/${partial}`
-    return git.clone({
-      fs: fs,
+    var p = `/BLOCKTREE/${this.observer.name}/${partial}`
+    return clone({
+      fs: this.observer.fs,
       dir: p,
       gitdir: `${p}/.git`,
       url: url,
       singleBranch: true,
-      depth: 1
+      depth: 1,
+      authUsername: this.observer.hosts[0].auth.username,
+      authPassword: this.observer.hosts[0].auth.password
     })
   }
 
-  /*
-   * Clone or pull if already exists.
-   */
   async clonep (partial, url, ref = 'master') {
-    var p = `/BLOCKTREE/${observer['name']}/${partial}`
+    /*
+     * Clone or pull if already exists.
+     */
+    var p = `/BLOCKTREE/${this.observer.name}/${partial}`
     var stats
     try {
-      stats = await fs.stat(p)
+      stats = await this.observer.fs.stat(p)
     } catch (e) {
       return this.clone(partial, url)
     }
     if (stats && !stats.isDirectory()) throw new DBError(`${p} already exists`, 'EEXIST')
     var commit = await git.log({
-      fs: fs,
+      fs: this.observer.fs,
       dir: p,
       gitdir: `${p}/.git`,
       depth: 1
     })
-    var info = await this.git.getRemoteInfo({'url': url})
+    var info = await getRemoteInfo({'url': url})
     if (commit[0].oid !== info.refs.heads[ref]) {
       return this.pull(partial)
     }
   }
 
   async redirectRemote (dir) {
-    var cfg = await fs.readFile(dir, 'utf-8')
-    await fs.writeFile(dir, cfg.replace('guldcoin', this.auth.username))
+    var cfg = await this.observer.fs.readFile(dir, 'utf-8')
+    await this.fs.writeFile(dir, cfg.replace('guldcoin', this.observer.hosts[0].auth.auth.username))
   }
 
   async redirectAllRemotes () {
     return Promise.all(['ledger/GULD', 'ledger/GG', 'keys/pgp'].map(partial => {
-      return this.redirectRemote(`/BLOCKTREE/${observer['name']}/${partial}/.git/config`)
+      return this.redirectRemote(`/BLOCKTREE/${this.observer.name}/${partial}/.git/config`)
     }))
   }
 }
 
-module.exports = git
+module.exports = GitGuld

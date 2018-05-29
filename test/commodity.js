@@ -3,7 +3,6 @@ const assert = require('chai').assert
 const {Amount} = require('ledger-types')
 const Commodity = require('../src/commodity/commodity.js')
 const flexfs = require('../../flexfs/flexfs.js')
-const {zipdata} = require('./util.js')
 
 describe('Commodity', () => {
   before(async () => {

@@ -1,0 +1,58 @@
+/* eslint-env node, mocha */
+const assert = require('chai').assert
+const {Amount} = require('ledger-types')
+const GuldFS = require('../src/fs.js')
+const Observer = require('../src/observer.js')
+const pify = require('pify')
+const nodefs = pify(require('fs'))
+const o = new Observer()
+nodefs.observer = o
+
+describe('GuldFS', () => {
+  it('constructor', async () => {
+    var fs = new GuldFS(nodefs)
+    assert.isTrue(fs instanceof GuldFS)
+    assert.exists(fs.observer)
+    assert.notExists(o.fs)
+    assert.isTrue(fs.observer instanceof Observer)
+    assert.equal(fs.observer, o)
+  })
+  it('init', async () => {
+    await o.initComponent('fs', async (o) => new GuldFS(nodefs))
+    assert.exists(o.fs)
+    assert.isTrue(o.fs instanceof GuldFS)
+    assert.equal(o.fs.observer, o)
+  })
+  it('init again', async () => {
+    await o.initComponent('fs', async (o) => new GuldFS(nodefs))
+    assert.exists(o.fs)
+    assert.isTrue(o.fs instanceof GuldFS)
+    assert.equal(o.fs.observer, o)
+  })
+//  it('init', async () => {
+//    var plist = await fs.readdir(`/BLOCKTREE/guld/ledger/prices`)
+//    assert(plist.length > 0)
+//    assert(plist.indexOf('gg.fs') >= 0)
+//    var glist = await fs.readdir(`/BLOCKTREE/guld/ledger/GULD`)
+//    assert(glist.length > 0)
+//    assert(glist.indexOf('isysd') >= 0)
+//    glist = await fs.readdir(`/BLOCKTREE/guld/ledger/GG`)
+//    assert(glist.length > 0)
+//    assert(glist.indexOf('isysd') >= 0)
+//    var klist = await fs.readdir(`/BLOCKTREE/guld/keys/pgp`)
+//    assert(klist.length > 0)
+//    assert(klist.indexOf('isysd') >= 0)
+//  }).timeout(120000)
+//  it('init again', async () => {
+//    await this.blocktree.init()
+//    var plist = await fs.readdir(`/BLOCKTREE/guld/ledger/prices`)
+//    assert(plist.length > 0)
+//    assert(plist.indexOf('gg.fs') >= 0)
+//    var glist = await fs.readdir(`/BLOCKTREE/guld/ledger/GULD`)
+//    assert(glist.length > 0)
+//    assert(glist.indexOf('isysd') >= 0)
+//    var klist = await fs.readdir(`/BLOCKTREE/guld/keys/pgp`)
+//    assert(klist.length > 0)
+//    assert(klist.indexOf('isysd') >= 0)
+//  }).timeout(10000)
+})

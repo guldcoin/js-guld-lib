@@ -9,51 +9,7 @@ const {Blocktree, Transaction, Transfer, Grant, Register} = require('./guld-lib.
 const BrowserFS = require('browserfs')
 var fs = require('fs')
 
-
-describe('Blocktree', () => {
-  it('initFS', function (done) {
-    this.timeout(150000)
-    var p = `/BLOCKTREE/guld/ledger/GG`
-    this.blocktree.initFS().then(() => {
-      git.clone({
-        fs: fs,
-        dir: p,
-        gitdir: `${p}/.git`,
-        url: 'https://github.com/guld-games/ledger-gg.git',
-        singleBranch: true,
-        depth: 1
-      }).then(() => {
-        var plist = fs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
-        assert(plist.length > 0)
-        assert(plist.indexOf('gg.db') >= 0)
-        var glist = fs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
-        assert(glist.length > 0)
-        assert(glist.indexOf('isysd') >= 0)
-        glist = fs.readdirSync(`/BLOCKTREE/guld/ledger/GG`)
-        assert(glist.length > 0)
-        assert(glist.indexOf('isysd') >= 0)
-        var klist = fs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
-        assert(klist.length > 0)
-        assert(klist.indexOf('isysd') >= 0)
-        done()
-      }).catch(done)
-    }).catch(done)
-  })
-  it('initFS again', function (done) {
-    this.timeout(15000)
-    this.blocktree.initFS().then(() => {
-      var plist = fs.readdirSync(`/BLOCKTREE/guld/ledger/prices`)
-      assert(plist.length > 0)
-      assert(plist.indexOf('gg.db') >= 0)
-      var glist = fs.readdirSync(`/BLOCKTREE/guld/ledger/GULD`)
-      assert(glist.length > 0)
-      assert(glist.indexOf('isysd') >= 0)
-      var klist = fs.readdirSync(`/BLOCKTREE/guld/keys/pgp`)
-      assert(klist.length > 0)
-      assert(klist.indexOf('isysd') >= 0)
-      done()
-    }).catch(done)
-  })
+describe('Session', () => {
   it('setLedger', function (done) {
     this.timeout(60000)
     assert(typeof this.blocktree.getLedger() === 'undefined')
