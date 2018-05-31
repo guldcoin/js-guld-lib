@@ -97,7 +97,7 @@ class Observer extends EventEmitter {
     if (!this.initialized || !valid) {
       return Promise.resolve(false)
     } else {
-      var namelist = await this.listNames()
+      var namelist = await this.listGuldNames()
       return (namelist.indexOf(gname) < 0)
     }
   }

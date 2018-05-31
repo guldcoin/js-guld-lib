@@ -44,7 +44,7 @@ class GuldLedger extends aggregation(
 
   async isRegistered (oname) {
     oname = oname || this.observer.name
-    var bal = await getBalance('guld')
+    var bal = await this.observer.ledger.getAccount('guld')
     return (
       bal &&
       bal.Income &&
